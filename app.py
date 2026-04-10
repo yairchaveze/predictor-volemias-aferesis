@@ -67,7 +67,8 @@ st.markdown(f"""
 
 @st.cache_resource
 def load_and_train():
-    df = pd.read_csv("datos_modelo.csv")
+    import os
+    df = pd.read_csv(os.path.join(os.path.dirname(__file__), "datos_modelo.csv"))
     df_f = df[
         (df["PRE_CD34"] >= 10) & (df["PRE_CD34"] <= 100) &
         (df["EDAD_REC"] >= 18) & (df["PESO_REC"] >= 40)
