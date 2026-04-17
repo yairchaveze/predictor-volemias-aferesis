@@ -100,6 +100,27 @@ def load_and_train():
 model, FEATURES = load_and_train()
 st.success(f"✅ Modelo {VER} listo — n=140 | MAE={MAE} | R²=0.852")
 
+# ── Inicializar session_state ─────────────────────────────────────────────────
+if 'calculado' not in st.session_state:
+    st.session_state.calculado = False
+if 'vol_pred' not in st.session_state:
+    st.session_state.vol_pred = 4.0
+if 'vol_cos_est' not in st.session_state:
+    st.session_state.vol_cos_est = 234
+if 'result_html' not in st.session_state:
+    st.session_state.result_html = ''
+if 'vel_ini_saved' not in st.session_state:
+    st.session_state.vel_ini_saved = 65
+if 'vel_fin_saved' not in st.session_state:
+    st.session_state.vel_fin_saved = 85.0
+if 'cd34_saved' not in st.session_state:
+    st.session_state.cd34_saved = 50.0
+if 'volemia_saved' not in st.session_state:
+    st.session_state.volemia_saved = 4500
+if 'peso_rec_saved' not in st.session_state:
+    st.session_state.peso_rec_saved = 70.0
+
+# ── Entradas ──────────────────────────────────────────────────────────────────
 st.markdown('<div class="slabel">Tipo de acceso y donador</div>', unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 with col1:
@@ -153,9 +174,8 @@ if plerix_on:
     st.markdown(f"**{total_mg} mg totales** ({peso_don} kg × {plerix_dosis} mg/kg)")
 
 st.markdown("<br>", unsafe_allow_html=True)
-calcular = st.button("Calcular volemias recomendadas", type="primary", use_container_width=True)
 
-if calcular:
+if st.button("Calcular volemias recomendadas", type="primary", use_container_width=True):
     X_new = pd.DataFrame([{
         "VOLEMIA"      : volemia,
         "VOL_COSECHA"  : vol_cos_est,
@@ -187,7 +207,17 @@ if calcular:
     badge_class = "badge-ok" if ok else "badge-warn"
     badge_txt   = "En rango objetivo 5–10 ×10⁶/kg" if ok else "Fuera del rango objetivo"
 
-    st.markdown(f"""
+    # Guardar en session_state
+    st.session_state.calculado    = True
+    st.session_state.vol_pred     = round(vol_pred, 2)
+    st.session_state.vol_cos_est  = vol_cos_est
+    st.session_state.vel_ini_saved  = vel_ini
+    st.session_state.vel_fin_saved  = vel_fin_imp
+    st.session_state.cd34_saved     = cd34
+    st.session_state.volemia_saved  = volemia
+    st.session_state.peso_rec_saved = peso_rec
+
+    st.session_state.result_html = f"""
     <div class="result-box">
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
         <div>
@@ -223,8 +253,13 @@ if calcular:
         Desarrollado por YOCE — Yair Omar Chávez Estrada · abril 2026
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    """
 
+# ── Mostrar resultado persistente ────────────────────────────────────────────
+if st.session_state.calculado and st.session_state.result_html:
+    st.markdown(st.session_state.result_html, unsafe_allow_html=True)
+
+    # ── Calculador de escenarios ──────────────────────────────────────────────
     st.markdown("""
     <div class="calc2-box">
       <div class="calc2-title">Calculador de escenarios</div>
@@ -232,16 +267,24 @@ if calcular:
     </div>
     """, unsafe_allow_html=True)
 
-    vol_sim = st.number_input("Volemias a procesar",
-                               min_value=1.0, max_value=9.0,
-                               value=round(vol_pred, 1), step=0.1)
-    vol_cos_sim = st.number_input("Vol. cosecha programado (mL)",
-                                   min_value=133, max_value=404,
-                                   value=vol_cos_est, step=5)
+    vol_sim = st.number_input(
+        "Volemias a procesar",
+        min_value=1.0, max_value=9.0,
+        value=float(st.session_state.vol_pred),
+        step=0.1,
+        key="vol_sim"
+    )
+    vol_cos_sim = st.number_input(
+        "Vol. cosecha programado (mL)",
+        min_value=133, max_value=404,
+        value=int(st.session_state.vol_cos_est),
+        step=5,
+        key="vol_cos_sim"
+    )
 
-    cd34_sim   = (cd34 * volemia * vol_sim * CE) / (peso_rec * 1000)
-    sangre_sim = volemia * vol_sim
-    vel_prom   = (vel_ini + vel_fin_imp) / 2
+    cd34_sim   = (st.session_state.cd34_saved * st.session_state.volemia_saved * vol_sim * CE) / (st.session_state.peso_rec_saved * 1000)
+    sangre_sim = st.session_state.volemia_saved * vol_sim
+    vel_prom   = (st.session_state.vel_ini_saved + st.session_state.vel_fin_saved) / 2
     tiempo_sim = round(sangre_sim / vel_prom)
     ok_sim     = 5 <= cd34_sim <= 10
     badge_sim  = "badge-ok" if ok_sim else "badge-warn"
@@ -270,7 +313,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 with st.expander("Historial de versiones"):
     versiones = [
         ("v5.0","Abril 2026","140","0.266","0.852",
-         "Rango CD34+ ampliado a 10-150 /µL (+42 casos). Analisis de importancia confirmo necesidad de las 18 variables (reduccion a 13 cambia solo 0.011 vol en media, sin impacto clinico). VOL_COSECHA reemplazada por estimacion automatica 5.2% de volemia. Calculador de escenarios con step de 0.1 volemias."),
+         "Rango CD34+ ampliado a 10-150 /µL (+42 casos). Analisis de importancia confirmo necesidad de las 18 variables. VOL_COSECHA reemplazada por estimacion automatica 5.2% de volemia. Calculador de escenarios persistente con session_state."),
         ("v4.5","Abril 2026","98","0.327","0.737",
          "App web Streamlit. Plerixafor con dosis ajustable y mg totales automaticos."),
         ("v4.0","Abril 2026","98","0.327","0.737",
