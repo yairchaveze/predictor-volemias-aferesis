@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor
 from datetime import date
+import os
 
 st.set_page_config(
     page_title="Predictor de Volemias · YOCE",
@@ -44,22 +45,32 @@ st.markdown("""
   .mi-val{font-size:12px;font-weight:bold;color:#333}
   .footer{font-size:9px;color:#aaa;text-align:center;margin-top:10px;
     border-top:0.5px solid #ddd;padding-top:8px;line-height:1.7}
+  .calc2-box{background:#f0f7ff;border-left:6px solid #185FA5;border-radius:8px;
+    padding:14px;margin-top:14px}
+  .calc2-title{font-size:13px;font-weight:bold;color:#185FA5;margin-bottom:4px}
+  .calc2-sub{font-size:10px;color:#666;margin-bottom:4px}
+  .calc2-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .calc2-card{background:#fff;border-radius:6px;padding:8px;text-align:center;border:0.5px solid #b5d4f4}
+  .calc2-label{font-size:9px;color:#888;margin-bottom:3px}
+  .calc2-val{font-size:15px;font-weight:bold;color:#0d3b6e}
+  .vol-note{font-size:10px;color:#666;background:#e8f4fd;border-radius:5px;
+    padding:5px 10px;margin-top:6px;text-align:center}
 </style>
 """, unsafe_allow_html=True)
 
-VER = "v4.5"
-MAE = 0.327
+VER = "v5.0"
+MAE = 0.266
 CE  = 0.48
 
 st.markdown(f"""
 <div class="header-box">
   <div class="header-left">
     <h2>Predictor de volemias · Aféresis CPH</h2>
-    <p>CD34+ 10–100 /µL · Adulto ≥18 a · Peso receptor 40–123 kg · Optia · IDL</p>
+    <p>CD34+ 10–150 /µL · Adulto ≥18 a · Peso receptor 40–123 kg · Optia · IDL</p>
   </div>
   <div class="header-right">
     <div class="yoce">YOCE</div>
-    <div class="vpill">{VER} · GradientBoosting · n=98 · MAE={MAE} · R²=0.737</div>
+    <div class="vpill">{VER} · GradientBoosting · n=140 · MAE={MAE} · R²=0.852</div>
     <div class="vdate">Última actualización: abril 2026</div>
   </div>
 </div>
@@ -67,15 +78,14 @@ st.markdown(f"""
 
 @st.cache_resource
 def load_and_train():
-    import os
     df = pd.read_csv(os.path.join(os.path.dirname(__file__), "datos_modelo.csv"))
     df_f = df[
-        (df["PRE_CD34"] >= 10) & (df["PRE_CD34"] <= 100) &
+        (df["PRE_CD34"] >= 10) & (df["PRE_CD34"] <= 150) &
         (df["EDAD_REC"] >= 18) & (df["PESO_REC"] >= 40)
     ].copy()
     df_f["VEL_FINAL_IMP"] = df_f["VEL_FINAL"].copy()
-    df_f.loc[df_f["ACCESO_BIN"]==1, "VEL_FINAL_IMP"] = df_f.loc[df_f["ACCESO_BIN"]==1, "VEL_FINAL_IMP"].fillna(85.0)
-    df_f.loc[df_f["ACCESO_BIN"]==0, "VEL_FINAL_IMP"] = df_f.loc[df_f["ACCESO_BIN"]==0, "VEL_FINAL_IMP"].fillna(71.5)
+    df_f.loc[df_f["ACCESO_BIN"]==1,"VEL_FINAL_IMP"] = df_f.loc[df_f["ACCESO_BIN"]==1,"VEL_FINAL_IMP"].fillna(85.0)
+    df_f.loc[df_f["ACCESO_BIN"]==0,"VEL_FINAL_IMP"] = df_f.loc[df_f["ACCESO_BIN"]==0,"VEL_FINAL_IMP"].fillna(71.5)
     FEATURES = ["VOLEMIA","VOL_COSECHA","ACCESO_BIN","VEL_INICIAL","PRE_HTO",
                 "VEL_FINAL_IMP","PESO_REC","PESO_DON","PRE_CD34","PRE_WBC",
                 "EDAD_DON","PRE_PLT","TIPO_BIN","PRE_MNC_PCT","PRE_MNC_ABS",
@@ -88,17 +98,20 @@ def load_and_train():
     return model, FEATURES
 
 model, FEATURES = load_and_train()
-st.success(f"✅ Modelo {VER} listo — n=98 | MAE={MAE} | R²=0.737")
+st.success(f"✅ Modelo {VER} listo — n=140 | MAE={MAE} | R²=0.852")
 
-st.markdown('<div class="slabel">Tipo de donador y acceso</div>', unsafe_allow_html=True)
+st.markdown('<div class="slabel">Tipo de acceso y donador</div>', unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 with col1:
-    tipo = st.radio("Tipo de donador", ["Alogénico","Haploidéntico"], horizontal=True)
+    acceso = st.radio("Tipo de acceso vascular", ["Catéter","Punción venosa"], horizontal=True)
 with col2:
-    acceso = st.radio("Tipo de acceso", ["Catéter","Punción venosa"], horizontal=True)
+    tipo = st.radio("Tipo de donador", ["Alogénico","Haploidéntico"], horizontal=True)
 
 vel_fin_imp = 85.0 if acceso == "Catéter" else 71.5
 st.markdown(f'<div class="itip">Vel. final estimada: <b>{vel_fin_imp} mL/min</b> (mediana institucional · {acceso.lower()})</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="slabel">CD34+ día 5 — variable clave</div>', unsafe_allow_html=True)
+cd34 = st.number_input("CD34+ /µL [10–150]", 10.0, 150.0, 50.0, 0.5, label_visibility="collapsed")
 
 st.markdown('<div class="slabel">Donador</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
@@ -106,24 +119,22 @@ with c1: edad_don = st.number_input("Edad donador (años)", 18, 70, 35, 1)
 with c2: peso_don = st.number_input("Peso donador (kg)",   40.0, 140.0, 70.0, 0.5)
 with c3: volemia  = st.number_input("Vol. sanguíneo (mL)", 2000, 8000, 4500, 50)
 
+vol_cos_est = round(volemia * 0.052)
+st.markdown(f'<div class="vol-note">Vol. cosecha estimado automáticamente: <b>{vol_cos_est} mL</b> (5.2% de volemia · rango institucional: 133–404 mL · mediana: 249 mL)</div>', unsafe_allow_html=True)
+
 st.markdown('<div class="slabel">Receptor y procedimiento</div>', unsafe_allow_html=True)
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 with c1: peso_rec = st.number_input("Peso receptor (kg) [40–123]", 40.0, 123.0, 70.0, 0.5)
-with c2: vol_cos  = st.number_input("Vol. cosecha prog. (mL)", 50, 500, 200, 5)
-with c3: vel_ini  = st.number_input("Vel. inicial (mL/min)", 30, 120, 65, 1)
+with c2: vel_ini  = st.number_input("Vel. inicial (mL/min)", 30, 120, 65, 1)
 
-st.markdown('<div class="slabel">CD34+ y biometría pre-aféresis</div>', unsafe_allow_html=True)
+st.markdown('<div class="slabel">Biometría pre-aféresis</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
-with c1:
-    st.markdown("**CD34+ día 5 (/µL)** — variable clave")
-    cd34 = st.number_input("CD34+ /µL", 10.0, 100.0, 50.0, 0.5, label_visibility="collapsed")
-with c2: wbc = st.number_input("WBC pre (k/µL)",    1.0, 100.0, 30.0, 0.1)
-with c3: hto = st.number_input("HTO pre (%)",       20.0, 55.0, 42.0, 0.5)
-
-c1, c2, c3 = st.columns(3)
-with c1: mnc_pct = st.number_input("MNC% pre",            0.0, 60.0, 10.0, 0.5)
-with c2: mnc_abs = st.number_input("MNC absoluto (k/µL)", 0.0, 25.0,  3.0, 0.1)
+with c1: wbc     = st.number_input("WBC pre (k/µL)",     1.0, 100.0, 30.0, 0.1)
+with c2: hto     = st.number_input("HTO pre (%)",        20.0, 55.0, 42.0, 0.5)
 with c3: plt_val = st.number_input("PLT pre (k/µL)",     50.0, 600.0, 220.0, 5.0)
+c1, c2 = st.columns(2)
+with c1: mnc_abs = st.number_input("MNC absoluto (k/µL)", 0.0, 25.0, 3.0, 0.1)
+with c2: mnc_pct = st.number_input("MNC% pre",            0.0, 60.0, 10.0, 0.5)
 
 st.markdown('<div class="slabel">G-CSF y Plerixafor</div>', unsafe_allow_html=True)
 c1, c2 = st.columns(2)
@@ -147,7 +158,7 @@ calcular = st.button("Calcular volemias recomendadas", type="primary", use_conta
 if calcular:
     X_new = pd.DataFrame([{
         "VOLEMIA"      : volemia,
-        "VOL_COSECHA"  : vol_cos,
+        "VOL_COSECHA"  : vol_cos_est,
         "ACCESO_BIN"   : float(1 if acceso=="Catéter" else 0),
         "VEL_INICIAL"  : vel_ini,
         "PRE_HTO"      : hto,
@@ -174,7 +185,7 @@ if calcular:
     hoy      = date.today().strftime("%d/%m/%Y")
     plx_str  = f" · Plerixafor {plerix_dosis} mg/kg" if plerix_on else ""
     badge_class = "badge-ok" if ok else "badge-warn"
-    badge_txt   = "En rango objetivo  5–10 ×10⁶/kg" if ok else "Fuera del rango objetivo"
+    badge_txt   = "En rango objetivo 5–10 ×10⁶/kg" if ok else "Fuera del rango objetivo"
 
     st.markdown(f"""
     <div class="result-box">
@@ -186,7 +197,7 @@ if calcular:
         <div style="text-align:right;font-size:10px;color:#aaa">YOCE<br>{VER}</div>
       </div>
       <div class="res-num">{vol_pred:.2f}</div>
-      <div class="res-unit" style="color:#666;font-size:14px">volemias recomendadas</div>
+      <div style="color:#666;font-size:14px">volemias recomendadas</div>
       <div class="res-row">
         <span class="res-label">Rango de confianza (±MAE)</span>
         <span class="res-val" style="color:#1a6fa8">{vol_low:.2f} – {vol_high:.2f} vol</span>
@@ -195,33 +206,83 @@ if calcular:
         <span class="res-label">CD34+ estimado en receptor</span>
         <span class="res-val">{cd34_est:.1f} ×10⁶/kg</span>
       </div>
+      <div class="res-row">
+        <span class="res-label">Vol. cosecha utilizado por el modelo</span>
+        <span class="res-val">{vol_cos_est} mL (5.2% de volemia)</span>
+      </div>
       <div class="{badge_class}">{badge_txt}</div>
       <div class="mi-grid">
         <div class="mi-card"><div class="mi-label">Versión</div><div class="mi-val">{VER}</div></div>
-        <div class="mi-card"><div class="mi-label">n</div><div class="mi-val">98</div></div>
+        <div class="mi-card"><div class="mi-label">n</div><div class="mi-val">140</div></div>
         <div class="mi-card"><div class="mi-label">MAE</div><div class="mi-val">{MAE} vol</div></div>
-        <div class="mi-card"><div class="mi-label">R²</div><div class="mi-val">0.737</div></div>
+        <div class="mi-card"><div class="mi-label">R²</div><div class="mi-val">0.852</div></div>
       </div>
       <div class="footer">
-        GradientBoostingRegressor · Spectra Optia · Kit IDL · HU-UANL<br>
-        Vel. final: catéter=85 · punción=71.5 mL/min · CE=48%<br>
+        GradientBoostingRegressor · 18 variables · Spectra Optia · Kit IDL · HU-UANL<br>
+        CD34+ 10–150 /µL · Vel. final: catéter=85 · punción=71.5 mL/min · CE=48%<br>
         Desarrollado por YOCE — Yair Omar Chávez Estrada · abril 2026
       </div>
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("""
+    <div class="calc2-box">
+      <div class="calc2-title">Calculador de escenarios</div>
+      <div class="calc2-sub">¿Qué pasa si proceso X volemias con Y mL de cosecha? Ajusta de 0.1 en 0.1</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    vol_sim = st.number_input("Volemias a procesar",
+                               min_value=1.0, max_value=9.0,
+                               value=round(vol_pred, 1), step=0.1)
+    vol_cos_sim = st.number_input("Vol. cosecha programado (mL)",
+                                   min_value=133, max_value=404,
+                                   value=vol_cos_est, step=5)
+
+    cd34_sim   = (cd34 * volemia * vol_sim * CE) / (peso_rec * 1000)
+    sangre_sim = volemia * vol_sim
+    vel_prom   = (vel_ini + vel_fin_imp) / 2
+    tiempo_sim = round(sangre_sim / vel_prom)
+    ok_sim     = 5 <= cd34_sim <= 10
+    badge_sim  = "badge-ok" if ok_sim else "badge-warn"
+    badge_stxt = "En rango objetivo 5–10 ×10⁶/kg" if ok_sim else "Fuera del rango objetivo"
+
+    st.markdown(f"""
+    <div class="calc2-grid">
+      <div class="calc2-card">
+        <div class="calc2-label">CD34+ estimado receptor</div>
+        <div class="calc2-val">{cd34_sim:.1f} ×10⁶/kg</div>
+      </div>
+      <div class="calc2-card">
+        <div class="calc2-label">Sangre total procesada</div>
+        <div class="calc2-val">{sangre_sim:,.0f} mL</div>
+      </div>
+      <div class="calc2-card">
+        <div class="calc2-label">Tiempo estimado</div>
+        <div class="calc2-val">{tiempo_sim} min</div>
+      </div>
+    </div>
+    <div class="{badge_sim}" style="margin-top:10px;padding:7px;border-radius:7px;
+      font-weight:bold;font-size:12px;text-align:center">{badge_stxt}</div>
+    """, unsafe_allow_html=True)
+
 st.markdown("<br>", unsafe_allow_html=True)
 with st.expander("Historial de versiones"):
     versiones = [
-        ("v4.5","Abril 2026","98","0.327","0.737","App web Streamlit. Plerixafor con dosis ajustable y mg totales automáticos."),
-        ("v4.4","Abril 2026","98","0.327","0.737","Slider arriba, número abajo. Sin solapamiento visual."),
-        ("v4.0","Abril 2026","98","0.327","0.737","Vel. final imputada por mediana institucional (catéter=85, punción=71.5 mL/min)."),
-        ("v3.0","Abril 2026","98","0.362","0.690","Se elimina vel. final del panel de entrada."),
-        ("v2.0","Abril 2026","98","0.327","0.737","Velocidades, vol. cosecha y filtro peso receptor ≥40 kg."),
-        ("v1.0","Abril 2026","279","0.536","0.642","Modelo inicial ALO+HAPLO sin filtros de población."),
+        ("v5.0","Abril 2026","140","0.266","0.852",
+         "Rango CD34+ ampliado a 10-150 /µL (+42 casos). Analisis de importancia confirmo necesidad de las 18 variables (reduccion a 13 cambia solo 0.011 vol en media, sin impacto clinico). VOL_COSECHA reemplazada por estimacion automatica 5.2% de volemia. Calculador de escenarios con step de 0.1 volemias."),
+        ("v4.5","Abril 2026","98","0.327","0.737",
+         "App web Streamlit. Plerixafor con dosis ajustable y mg totales automaticos."),
+        ("v4.0","Abril 2026","98","0.327","0.737",
+         "Vel. final imputada por mediana institucional segun acceso."),
+        ("v3.0","Abril 2026","98","0.362","0.690",
+         "Se elimina vel. final del panel de entrada."),
+        ("v2.0","Abril 2026","98","0.327","0.737",
+         "Velocidades, vol. cosecha y filtro peso receptor >= 40 kg."),
+        ("v1.0","Abril 2026","279","0.536","0.642",
+         "Modelo inicial ALO+HAPLO sin filtros de poblacion."),
     ]
     for v, fecha, n, mae, r2, desc in versiones:
-        txt = "**" + v + "** · " + fecha + " · n=" + n + " · MAE=" + mae + " · R2=" + r2 + "  " + desc
+        txt = "**" + v + "** · " + fecha + " · n=" + n + " · MAE=" + mae + " · R2=" + r2 + "  \n" + desc
         st.markdown(txt)
-
         st.divider()
