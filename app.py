@@ -24,8 +24,8 @@ st.markdown("""
   .vdate{color:#85b7eb;font-size:9px;margin-top:3px}
   .slabel{font-size:11px;font-weight:bold;color:#0d3b6e;text-transform:uppercase;
     letter-spacing:1px;margin:14px 0 6px}
-  .itip{font-size:10px;color:#555;background:#e6f1fb;border-left:3px solid #185FA5;
-    padding:4px 10px;border-radius:4px;margin-top:4px;margin-bottom:8px}
+  .itip{font-size:11px;color:#0C447C;background:#E6F1FB;border-left:3px solid #185FA5;
+    padding:5px 10px;border-radius:4px;margin-top:4px;margin-bottom:8px}
   .result-box{background:#eaf4fb;border-left:6px solid #0d3b6e;border-radius:8px;
     padding:16px;margin-top:16px}
   .res-tipo{font-size:13px;font-weight:bold;color:#0d3b6e}
@@ -45,20 +45,20 @@ st.markdown("""
   .mi-val{font-size:12px;font-weight:bold;color:#333}
   .footer{font-size:9px;color:#aaa;text-align:center;margin-top:10px;
     border-top:0.5px solid #ddd;padding-top:8px;line-height:1.7}
-  .calc2-box{background:#f0f7ff;border-left:6px solid #185FA5;border-radius:8px;
+  .calc2-box{background:#E6F1FB;border-left:6px solid #185FA5;border-radius:8px;
     padding:14px;margin-top:14px}
   .calc2-title{font-size:13px;font-weight:bold;color:#185FA5;margin-bottom:4px}
-  .calc2-sub{font-size:10px;color:#666;margin-bottom:4px}
+  .calc2-sub{font-size:11px;color:#0C447C;margin-bottom:4px}
   .calc2-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
   .calc2-card{background:#fff;border-radius:6px;padding:8px;text-align:center;border:0.5px solid #b5d4f4}
-  .calc2-label{font-size:9px;color:#888;margin-bottom:3px}
+  .calc2-label{font-size:10px;color:#555;margin-bottom:3px}
   .calc2-val{font-size:15px;font-weight:bold;color:#0d3b6e}
-  .vol-note{font-size:10px;color:#666;background:#e8f4fd;border-radius:5px;
-    padding:5px 10px;margin-top:6px;text-align:center}
+  .vol-note{font-size:11px;color:#0C447C;background:#E6F1FB;border-radius:5px;
+    padding:6px 10px;margin-top:6px;text-align:center;border-left:3px solid #185FA5}
 </style>
 """, unsafe_allow_html=True)
 
-VER = "v5.0"
+VER = "v5.1"
 MAE = 0.266
 CE  = 0.48
 
@@ -100,25 +100,12 @@ def load_and_train():
 model, FEATURES = load_and_train()
 st.success(f"✅ Modelo {VER} listo — n=140 | MAE={MAE} | R²=0.852")
 
-# ── Inicializar session_state ─────────────────────────────────────────────────
-if 'calculado' not in st.session_state:
-    st.session_state.calculado = False
-if 'vol_pred' not in st.session_state:
-    st.session_state.vol_pred = 4.0
-if 'vol_cos_est' not in st.session_state:
-    st.session_state.vol_cos_est = 234
-if 'result_html' not in st.session_state:
-    st.session_state.result_html = ''
-if 'vel_ini_saved' not in st.session_state:
-    st.session_state.vel_ini_saved = 65
-if 'vel_fin_saved' not in st.session_state:
-    st.session_state.vel_fin_saved = 85.0
-if 'cd34_saved' not in st.session_state:
-    st.session_state.cd34_saved = 50.0
-if 'volemia_saved' not in st.session_state:
-    st.session_state.volemia_saved = 4500
-if 'peso_rec_saved' not in st.session_state:
-    st.session_state.peso_rec_saved = 70.0
+# ── Session state ─────────────────────────────────────────────────────────────
+for k, v in [('calculado',False),('vol_pred',4.0),('vol_cos_est',234),
+             ('result_html',''),('vel_ini_saved',65),('vel_fin_saved',85.0),
+             ('cd34_saved',50.0),('volemia_saved',4500),('peso_rec_saved',70.0)]:
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 # ── Entradas ──────────────────────────────────────────────────────────────────
 st.markdown('<div class="slabel">Tipo de acceso y donador</div>', unsafe_allow_html=True)
@@ -163,7 +150,7 @@ with c1: dias_gcsf  = st.number_input("Días G-CSF", 1, 8, 4, 1)
 with c2: dosis_gcsf = st.number_input("Dosis G-CSF (µg/día)", 300, 1200, 600, 50)
 
 plerix_on = st.checkbox("Plerixafor administrado")
-st.caption("Al activar, ingresa la dosis real. Rango institucional: 0.12–0.27 mg/kg · Mediana: 0.24 mg/kg")
+st.markdown('<div class="itip">Al activar, ingresa la dosis real. Rango institucional: 0.12–0.27 mg/kg · Mediana: 0.24 mg/kg</div>', unsafe_allow_html=True)
 
 plerix_val   = 0.0
 plerix_dosis = 0.24
@@ -207,10 +194,9 @@ if st.button("Calcular volemias recomendadas", type="primary", use_container_wid
     badge_class = "badge-ok" if ok else "badge-warn"
     badge_txt   = "En rango objetivo 5–10 ×10⁶/kg" if ok else "Fuera del rango objetivo"
 
-    # Guardar en session_state
-    st.session_state.calculado    = True
-    st.session_state.vol_pred     = round(vol_pred, 2)
-    st.session_state.vol_cos_est  = vol_cos_est
+    st.session_state.calculado      = True
+    st.session_state.vol_pred       = round(vol_pred, 2)
+    st.session_state.vol_cos_est    = vol_cos_est
     st.session_state.vel_ini_saved  = vel_ini
     st.session_state.vel_fin_saved  = vel_fin_imp
     st.session_state.cd34_saved     = cd34
@@ -255,15 +241,14 @@ if st.button("Calcular volemias recomendadas", type="primary", use_container_wid
     </div>
     """
 
-# ── Mostrar resultado persistente ────────────────────────────────────────────
+# ── Resultado persistente ─────────────────────────────────────────────────────
 if st.session_state.calculado and st.session_state.result_html:
     st.markdown(st.session_state.result_html, unsafe_allow_html=True)
 
-    # ── Calculador de escenarios ──────────────────────────────────────────────
     st.markdown("""
     <div class="calc2-box">
       <div class="calc2-title">Calculador de escenarios</div>
-      <div class="calc2-sub">¿Qué pasa si proceso X volemias con Y mL de cosecha? Ajusta de 0.1 en 0.1</div>
+      <div class="calc2-sub">¿Qué pasa si proceso X volemias? Ajusta de 0.1 en 0.1</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -271,15 +256,7 @@ if st.session_state.calculado and st.session_state.result_html:
         "Volemias a procesar",
         min_value=1.0, max_value=9.0,
         value=float(st.session_state.vol_pred),
-        step=0.1,
-        key="vol_sim"
-    )
-    vol_cos_sim = st.number_input(
-        "Vol. cosecha programado (mL)",
-        min_value=133, max_value=404,
-        value=int(st.session_state.vol_cos_est),
-        step=5,
-        key="vol_cos_sim"
+        step=0.1, key="vol_sim"
     )
 
     cd34_sim   = (st.session_state.cd34_saved * st.session_state.volemia_saved * vol_sim * CE) / (st.session_state.peso_rec_saved * 1000)
@@ -302,7 +279,7 @@ if st.session_state.calculado and st.session_state.result_html:
       </div>
       <div class="calc2-card">
         <div class="calc2-label">Tiempo estimado</div>
-        <div class="calc2-val">{tiempo_sim} min</div>
+        <div class="calc2-val">{tiempo_sim} min (~{tiempo_sim/60:.1f} h)</div>
       </div>
     </div>
     <div class="{badge_sim}" style="margin-top:10px;padding:7px;border-radius:7px;
@@ -312,8 +289,10 @@ if st.session_state.calculado and st.session_state.result_html:
 st.markdown("<br>", unsafe_allow_html=True)
 with st.expander("Historial de versiones"):
     versiones = [
+        ("v5.1","Abril 2026","140","0.266","0.852",
+         "Se elimina vol. cosecha del calculador de escenarios (no afectaba CD34+ estimado). Mejora de contraste y tamano de texto en notas informativas. Calculador persistente con session_state."),
         ("v5.0","Abril 2026","140","0.266","0.852",
-         "Rango CD34+ ampliado a 10-150 /µL (+42 casos). Analisis de importancia confirmo necesidad de las 18 variables. VOL_COSECHA reemplazada por estimacion automatica 5.2% de volemia. Calculador de escenarios persistente con session_state."),
+         "Rango CD34+ ampliado a 10-150 /µL (+42 casos). VOL_COSECHA estimada automaticamente (5.2% de volemia). Calculador de escenarios de 0.1 en 0.1."),
         ("v4.5","Abril 2026","98","0.327","0.737",
          "App web Streamlit. Plerixafor con dosis ajustable y mg totales automaticos."),
         ("v4.0","Abril 2026","98","0.327","0.737",
@@ -326,6 +305,5 @@ with st.expander("Historial de versiones"):
          "Modelo inicial ALO+HAPLO sin filtros de poblacion."),
     ]
     for v, fecha, n, mae, r2, desc in versiones:
-        txt = "**" + v + "** · " + fecha + " · n=" + n + " · MAE=" + mae + " · R2=" + r2 + "  \n" + desc
-        st.markdown(txt)
+        st.markdown("**" + v + "** · " + fecha + " · n=" + n + " · MAE=" + mae + " · R2=" + r2 + "  \n" + desc)
         st.divider()
